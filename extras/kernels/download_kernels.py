@@ -50,10 +50,10 @@ def download_kernels(competition):
                     downloaded_kernels.append(kernel_ref)
                     new_filename = f"{author}_{downloaded_file.name}"
                     downloaded_file.rename(kernels_dir / new_filename)
-            except kaggle.rest.ApiException as e:
-                if e.status == 403:
+            except Exception as e:
+                if hasattr(e, 'response') and e.response is not None and e.response.status_code == 403:
                     logger.warning(
-                        f"403 Forbidden error when downloading kernel {kernel_ref}. {e.body}. Skipping."
+                        f"403 Forbidden error when downloading kernel {kernel_ref}. {str(e)}. Skipping."
                     )
                 else:
                     logger.error(f"Error downloading kernel {kernel_ref}: {str(e)}")

@@ -187,10 +187,9 @@ def is_dataset_prepared(competition: Competition, grading_only: bool = False) ->
 
 
 def is_api_exception(exception: Exception) -> bool:
-    # only import when necessary; otherwise kaggle asks for API key on import
-    from kaggle.rest import ApiException
+    from requests.exceptions import HTTPError
 
-    return isinstance(exception, ApiException)
+    return isinstance(exception, HTTPError)
 
 
 @retry(
@@ -214,17 +213,16 @@ def download_dataset(
 
     api = authenticate_kaggle_api()
 
-    # only import when necessary; otherwise kaggle asks for API key on import
-    from kaggle.rest import ApiException
+    from requests.exceptions import HTTPError
 
     try:
         api.competition_download_files(
             competition=competition_id,
-            path=download_dir,
+            path=str(download_dir),
             quiet=quiet,
             force=force,
         )
-    except ApiException as e:
+    except HTTPError as e:
         if _need_to_accept_rules(str(e)):
             logger.warning("You must accept the competition rules before downloading the dataset.")
             _prompt_user_to_accept_rules(competition_id)
@@ -386,9 +384,8 @@ def ensure_leaderboard_exists(competition: Competition, force: bool = False) -> 
     api = authenticate_kaggle_api()
     leaderboard = api.competition_leaderboard_view(competition=competition.id)
     if leaderboard:
-        leaderboard = [row.__dict__ for row in leaderboard]
+        leaderboard = [row.to_field_map(ignore_defaults=False) for row in leaderboard]
         leaderboard_df = pd.DataFrame(leaderboard)
-        leaderboard_df.drop(columns=["teamNameNullable", "teamName"], inplace=True)
         leaderboard_df.to_csv(leaderboard_path, index=False)
         logger.info(
             f"Downloaded leaderboard for competition `{competition.id}` to `{download_dir.relative_to(Path.cwd()) / 'leaderboard.csv'}`."
